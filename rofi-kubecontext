@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+set -eu -o pipefail
+
+if [ "${ROFI_RETV}" == 0 ]
+then
+    echo -en "\0prompt\x1fKubernetes context\n"
+    echo -en "\0no-custom\x1ftrue\n"
+
+    current=$(kubectl config current-context)
+    readarray -t contexts < <(kubectl config get-contexts --no-headers=true)
+
+    for index in "${!contexts[@]}"
+    do
+        #echo "index=$index context=${contexts[$index]}"
+        oldifs=$IFS
+        IFS=' '
+        read -r -a context <<< "${contexts[$index]}"
+        IFS=$oldifs
+
+        if [ "${context[0]}" == "*"  ]; then
+            # current context
+            echo -en "\0active\x1f${index}\n"
+            offset=1
+        else
+            offset=0
+        fi
+
+        name="${context[${offset}]}"
+        if [[ -v "context[$(( 3 + ${offset} ))]" ]]; then
+            namespace="${context[$(( 3 + ${offset} ))]}"
+        else
+            namespace="default"
+        fi
+
+        echo -en "${name}"
+        if [ ! -z "${namespace}" ]; then
+            echo -en "    (${namespace})"
+           fi
+        echo -en "\0info\x1f${name}\n"
+    done
+
+elif [ "${ROFI_RETV}" == 1 ]
+then
+     kubectl config use-context "$ROFI_INFO" > /dev/null
+fi
